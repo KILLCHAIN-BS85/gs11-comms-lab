@@ -1,0 +1,47 @@
+# Prometheus Configuration — GS-11 EMCOMM Lab
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    lab: gs11-emcomm
+    environment: lab
+
+rule_files:
+  - "alerts/link-down.yml"
+  - "alerts/service-down.yml"
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ["alertmanager:9093"]
+
+scrape_configs:
+  # Lab host metrics
+  - job_name: "node-exporter"
+    static_configs:
+      - targets: ["node-exporter:9100"]
+    labels:
+      role: host
+
+  # Open5GS UPF (cellular core)
+  - job_name: "open5gs-upf"
+    static_configs:
+      - targets: ["upf:9090"]
+    labels:
+      role: cellular-core
+
+  # Prometheus self-monitoring
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  # Lab endpoints (WireGuard peers)
+  - job_name: "endpoints"
+    static_configs:
+      - targets:
+          - "192.168.10.11:9100"   # cpe-01
+          - "192.168.10.12:9100"   # cpe-02
+          - "192.168.10.21:9100"   # iop-01
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance

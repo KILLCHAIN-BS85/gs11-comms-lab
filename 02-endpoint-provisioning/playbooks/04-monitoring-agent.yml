@@ -1,0 +1,69 @@
+---
+# Install and configure osquery for endpoint monitoring
+# Enables Fleet-style device telemetry (GS-11: track device state)
+
+- name: Install monitoring agent (osquery)
+  hosts: all
+  become: true
+
+  vars:
+    osquery_version: "5.12.1"
+    fleet_hostname: "monitoring.lab.local"
+    fleet_port: 8412
+
+  tasks:
+    - name: Add osquery GPG key
+      ansible.builtin.shell: |
+        curl -fsSL https://pkg.osquery.io/deb/pubkey.gpg | gpg --dearmor -o /usr/share/keyrings/osquery.gpg
+      args:
+        creates: /usr/share/keyrings/osquery.gpg
+
+    - name: Add osquery apt repository
+      ansible.builtin.apt_repository:
+        repo: "deb [signed-by=/usr/share/keyrings/osquery.gpg] https://pkg.osquery.io/deb deb main"
+        state: present
+
+    - name: Install osquery
+      ansible.builtin.package:
+        name: osquery
+        state: present
+
+    - name: Deploy osquery configuration
+      ansible.builtin.copy:
+        content: |
+          {
+            "options": {
+              "config_plugin": "filesystem",
+              "logger_plugin": "filesystem",
+              "logger_path": "/var/log/osquery",
+              "schedule_splay_percent": 10,
+              "worker_threads": 2,
+              "watchdog_level": 1
+            },
+            "schedule": {
+              "system_info": {
+                "query": "SELECT hostname, cpu_type, physical_memory FROM system_info;",
+                "interval": 3600
+              },
+              "listening_ports": {
+                "query": "SELECT pid, port, protocol, address FROM listening_ports;",
+                "interval": 60
+              },
+              "users": {
+                "query": "SELECT uid, gid, username, description FROM users;",
+                "interval": 3600
+              },
+              "network_interfaces": {
+                "query": "SELECT interface, address, mask, broadcast FROM interface_addresses;",
+                "interval": 300
+              }
+            }
+          }
+        dest: /etc/osquery/osquery.conf
+        mode: '0644'
+
+    - name: Start osquery daemon
+      ansible.builtin.systemd:
+        name: osqueryd
+        enabled: true
+        state: started

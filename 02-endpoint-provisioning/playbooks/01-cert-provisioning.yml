@@ -1,0 +1,56 @@
+---
+# Issue device certificates from the internal Smallstep CA
+# Replicates GS-11 task: provision device identity for comms endpoints
+
+- name: Issue device certificates
+  hosts: all
+  become: true
+
+  vars:
+    ca_url: "https://pki-ca:9000"
+    ca_fingerprint: "{{ lookup('file', 'files/ca_fingerprint.txt') }}"
+    cert_dir: /etc/ssl/lab
+
+  tasks:
+    - name: Create certificate directory
+      ansible.builtin.file:
+        path: "{{ cert_dir }}"
+        state: directory
+        mode: '0750'
+        owner: root
+        group: root
+
+    - name: Install step-cli (Smallstep CLI)
+      ansible.builtin.shell: |
+        curl -fsSL https://dl.smallstep.com/gh-release/cli/docs-cli-install/v0.25.0/step_linux_0.25.0_amd64.tar.gz \
+          | tar xz -C /usr/local/bin --strip-components=2 step_0.25.0/bin/step
+      args:
+        creates: /usr/local/bin/step
+
+    - name: Bootstrap step CA
+      ansible.builtin.command: >
+        step ca bootstrap
+        --ca-url {{ ca_url }}
+        --fingerprint {{ ca_fingerprint }}
+        --install
+      args:
+        creates: /root/.step/config/defaults.json
+
+    - name: Issue device certificate
+      ansible.builtin.command: >
+        step ca certificate
+        {{ device_id }}.lab.local
+        {{ cert_dir }}/device.crt
+        {{ cert_dir }}/device.key
+        --provisioner acme
+        --not-after {{ cert_validity }}
+        --force
+      register: cert_result
+
+    - name: Verify certificate
+      ansible.builtin.command: step certificate inspect {{ cert_dir }}/device.crt --short
+      register: cert_inspect
+
+    - name: Display certificate info
+      ansible.builtin.debug:
+        msg: "{{ cert_inspect.stdout_lines }}"

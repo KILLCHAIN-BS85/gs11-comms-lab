@@ -1,0 +1,78 @@
+# Containerlab topology: Open5GS 5G Core + UERANSIM RAN
+# Deploy with: containerlab deploy -t topology.yml
+
+name: gs11-5g-core
+
+topology:
+  nodes:
+    # ─── 5G Core Network Functions ───────────────────────────────────
+    nrf:
+      kind: linux
+      image: gradiant/open5gs:2.7.0
+      cmd: /open5gs/install/bin/open5gs-nrfd -c /open5gs/install/etc/open5gs/nrf.yaml
+      env:
+        DB_URI: mongodb://mongo/open5gs
+
+    amf:
+      kind: linux
+      image: gradiant/open5gs:2.7.0
+      cmd: /open5gs/install/bin/open5gs-amfd -c /open5gs/install/etc/open5gs/amf.yaml
+      binds:
+        - configs/open5gs/amf.yaml:/open5gs/install/etc/open5gs/amf.yaml
+
+    smf:
+      kind: linux
+      image: gradiant/open5gs:2.7.0
+      cmd: /open5gs/install/bin/open5gs-smfd -c /open5gs/install/etc/open5gs/smf.yaml
+      binds:
+        - configs/open5gs/smf.yaml:/open5gs/install/etc/open5gs/smf.yaml
+
+    upf:
+      kind: linux
+      image: gradiant/open5gs:2.7.0
+      cmd: /open5gs/install/bin/open5gs-upfd -c /open5gs/install/etc/open5gs/upf.yaml
+      binds:
+        - configs/open5gs/upf.yaml:/open5gs/install/etc/open5gs/upf.yaml
+
+    mongo:
+      kind: linux
+      image: mongo:6.0
+
+    webui:
+      kind: linux
+      image: gradiant/open5gs-webui:2.7.0
+      ports:
+        - "9999:9999"
+      env:
+        DB_URI: mongodb://mongo/open5gs
+        NODE_ENV: production
+
+    # ─── RAN (UERANSIM) ──────────────────────────────────────────────
+    gnb:
+      kind: linux
+      image: gradiant/ueransim:3.2.6
+      cmd: /UERANSIM/build/nr-gnb -c /UERANSIM/config/gnb.yaml
+      binds:
+        - configs/ueransim/gnb.yaml:/UERANSIM/config/gnb.yaml
+
+    ue1:
+      kind: linux
+      image: gradiant/ueransim:3.2.6
+      cmd: /UERANSIM/build/nr-ue -c /UERANSIM/config/ue.yaml
+      binds:
+        - configs/ueransim/ue.yaml:/UERANSIM/config/ue.yaml
+
+  links:
+    # Core internal links
+    - endpoints: [amf:eth1, gnb:eth1]     # N2 (NGAP)
+    - endpoints: [upf:eth1, gnb:eth2]     # N3 (GTP-U)
+    - endpoints: [smf:eth1, upf:eth2]     # N4 (PFCP)
+    - endpoints: [amf:eth2, nrf:eth1]     # NRF registration
+    - endpoints: [smf:eth2, nrf:eth2]
+    - endpoints: [upf:eth3, nrf:eth3]
+    # UE attaches to gNB
+    - endpoints: [ue1:eth1, gnb:eth3]
+    # MongoDB backend
+    - endpoints: [amf:eth3, mongo:eth1]
+    - endpoints: [smf:eth3, mongo:eth2]
+    - endpoints: [webui:eth1, mongo:eth3]

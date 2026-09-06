@@ -1,0 +1,20 @@
+---
+# Master provisioning playbook
+# Runs all provisioning stages in order
+
+- name: Provision all lab endpoints
+  hosts: all
+  become: true
+  gather_facts: true
+
+  pre_tasks:
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+      when: ansible_os_family == "Debian"
+
+- import_playbook: 01-cert-provisioning.yml
+- import_playbook: 02-wireguard-setup.yml
+- import_playbook: 03-hardening.yml
+- import_playbook: 04-monitoring-agent.yml

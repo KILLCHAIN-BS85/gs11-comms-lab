@@ -1,0 +1,35 @@
+# Alert rules for link/host failures
+groups:
+  - name: link-down
+    interval: 30s
+    rules:
+      - alert: HostDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: critical
+          category: availability
+        annotations:
+          summary: "Host {{ $labels.instance }} is down"
+          description: "{{ $labels.instance }} has been unreachable for more than 1 minute. Role: {{ $labels.role }}"
+          runbook: "https://github.com/KILLCHAIN-BS85/gs11-comms-lab/blob/main/04-emcomm-readiness/docs/exercise-runbook.md"
+
+      - alert: NetworkInterfaceDown
+        expr: node_network_up{device!~"lo|docker.*|veth.*"} == 0
+        for: 30s
+        labels:
+          severity: warning
+          category: network
+        annotations:
+          summary: "Network interface {{ $labels.device }} on {{ $labels.instance }} is down"
+          description: "Interface {{ $labels.device }} has been down for over 30 seconds."
+
+      - alert: HighPacketLoss
+        expr: rate(node_network_transmit_drop_total[5m]) > 10
+        for: 2m
+        labels:
+          severity: warning
+          category: network
+        annotations:
+          summary: "High packet drops on {{ $labels.device }}"
+          description: "Packet drop rate exceeds 10/s on {{ $labels.instance }}/{{ $labels.device }}."

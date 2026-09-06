@@ -1,0 +1,23 @@
+# UERANSIM gNodeB Configuration
+# Emulates a 5G NR base station
+
+mcc: '001'
+mnc: '01'
+
+nci: '0x000000010'   # NR Cell Identity
+idLength: 32
+tac: 1
+
+linkIp: gnb         # gNB internal interface
+ngapIp: gnb         # N2 toward AMF
+gtpIp: gnb          # N3 toward UPF
+
+amfConfigs:
+  - address: amf
+    port: 38412
+
+slices:
+  - sst: 1
+  - sst: 2
+
+ignoreStreamIds: true

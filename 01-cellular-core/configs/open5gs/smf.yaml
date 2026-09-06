@@ -1,0 +1,54 @@
+# Open5GS SMF Configuration
+# Session Management Function — defines APNs/DNNs and QoS
+
+logger:
+  file:
+    path: /var/log/open5gs/smf.log
+  level: info
+
+smf:
+  sbi:
+    server:
+      - address: smf
+        port: 7777
+    client:
+      nrf:
+        - uri: http://nrf:7777
+      upf:
+        - uri: http://upf:8805  # PFCP
+
+  pfcp:
+    server:
+      - address: smf
+    client:
+      upf:
+        - address: upf
+
+  # DNN/APN definitions — maps to cellular router profiles
+  session:
+    - subnet: 10.45.0.1/16   # Default APN: internet
+      dnn: internet
+      dns:
+        - 8.8.8.8
+        - 1.1.1.1
+
+    - subnet: 10.46.0.1/16   # Emergency APN
+      dnn: emergency
+      dns:
+        - 9.9.9.9
+
+    - subnet: 10.47.0.1/16   # Management APN
+      dnn: management
+      dns:
+        - 8.8.8.8
+
+  # QoS profiles (maps to GS-11 QoS enforcement tasks)
+  qos:
+    - qci: 1     # Voice (GBR)
+      arp:
+        priority_level: 2
+        pre_emption_capability: disabled
+        pre_emption_vulnerability: enabled
+    - qci: 9     # Default bearer (Non-GBR)
+      arp:
+        priority_level: 8

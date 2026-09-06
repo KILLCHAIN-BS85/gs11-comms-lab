@@ -1,0 +1,37 @@
+# Open5GS UPF Configuration
+# User Plane Function — forwards data between RAN and internet
+
+logger:
+  file:
+    path: /var/log/open5gs/upf.log
+  level: info
+
+upf:
+  pfcp:
+    server:
+      - address: upf   # N4 toward SMF
+    client:
+      smf:
+        - address: smf
+
+  gtpu:
+    server:
+      - address: upf   # N3 toward gNB (GTP-U tunnels)
+
+  session:
+    - subnet: 10.45.0.1/16
+      dnn: internet
+      dev: ogstun0
+
+    - subnet: 10.46.0.1/16
+      dnn: emergency
+      dev: ogstun1
+
+    - subnet: 10.47.0.1/16
+      dnn: management
+      dev: ogstun2
+
+  metrics:
+    server:
+      - address: upf
+        port: 9090   # Prometheus scrape endpoint
